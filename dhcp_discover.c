@@ -6,6 +6,11 @@
 #include <time.h>
 #include <Packet32.h>
 #include <Ntddndis.h>
+#include <stdbool.h>
+
+#define ETHERNET_SIZE 14
+#define IP_SIZE       20
+#define UDP_SIZE      8
 
 // Ethernet header
 struct eth_header {
@@ -97,6 +102,25 @@ int get_mac_address(pcap_if_t *dev, unsigned char mac[6]) {
 
     return success;
 }
+
+uint8_t *dhcp_get_option(uint8_t *options, int code) {
+    uint8_t *opt = options;
+    int index =0;
+    while (*opt != 255) {
+        if (*opt == 0) { opt++; continue; } // Pad
+        uint8_t opt_code = opt[0];
+        uint8_t len = opt[1];
+        if (opt_code == code) {
+            return &opt[2]; // 回傳 data 開頭
+        }
+        // printf("opt_code:%d, len:%d\n",opt_code,len);
+        opt += 2 + len;
+        index += 2 + len;
+    }
+    printf("index:%d\n",index);
+    return NULL; // not found
+}
+
 
 int main() {
     pcap_if_t *alldevs, *d;
@@ -232,6 +256,56 @@ int main() {
     }
 
     printf("DHCP Discover sent!\n");
+
+    // 設定 BPF 過濾器 (只要 DHCP 封包)
+    struct bpf_program fcode;
+    if (pcap_compile(fp, &fcode, "udp and (port 67 or port 68)", 1, 0xffffffff) < 0) {
+        printf("Unable to compile the packet filter.\n");
+        pcap_close(fp);
+        return -1;
+    }
+    if (pcap_setfilter(fp, &fcode) < 0) {
+        printf("Error setting the filter.\n");
+        pcap_close(fp);
+        return -1;
+    }
+
+    printf("Listening for DHCP packets...\n");
+    // 進入接收 loop
+    while (1) {
+        struct pcap_pkthdr *header;
+        const u_char *pkt_data;
+        int res = pcap_next_ex(fp, &header, &pkt_data);
+        bool is_dhcp_offer = false; 
+        if (res == 1) {
+            printf("Got a packet of length %d\n", header->len);
+            // TODO: 在這裡解析 DHCP Offer
+            struct dhcp_packet *dhcp = (struct dhcp_packet *)(pkt_data + ETHERNET_SIZE + IP_SIZE + UDP_SIZE);
+            uint8_t *ip = (uint8_t *)&dhcp->yiaddr;
+            printf("yiaddr = %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+            uint8_t *opt = dhcp->options;
+            printf("Magic Cookie: %d %d %d %d\n", opt[0], opt[1], opt[2], opt[3]);
+            uint8_t *messageType = dhcp_get_option(dhcp->options+4,53);
+            uint8_t *srv = dhcp_get_option(dhcp->options +4, 54);
+            if (srv) {
+                printf("Server ID = %d.%d.%d.%d\n",
+                    srv[0], srv[1], srv[2], srv[3]);
+            }
+            printf("message type:%d\n",messageType[0]);
+            if (2 == (int) messageType[0]) {
+                printf("receive dhcp offer.\n");
+                // confirm dhcp server ip and yiaddr
+                break;
+            }
+        }
+    }
+
+    //sned dhcp request
+    ip -> identification = htons(0x5421);
+    ip->crc = checksum((unsigned short *)ip, sizeof(struct ip_header)/2);
+
+    
+
 
     pcap_close(fp);
     pcap_freealldevs(alldevs);
