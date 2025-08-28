@@ -7,68 +7,7 @@
 #include <Packet32.h>
 #include <Ntddndis.h>
 #include <stdbool.h>
-
-#define ETHERNET_SIZE 14
-#define IP_SIZE       20
-#define UDP_SIZE      8
-
-// Ethernet header
-struct eth_header {
-    unsigned char dst[6];
-    unsigned char src[6];
-    unsigned short type;
-};
-
-// IP header (without options)
-struct ip_header {
-    unsigned char  ver_ihl;       // 版本(4位元)+IHL(4位元)
-    unsigned char  tos;
-    unsigned short tlen;
-    unsigned short identification;
-    unsigned short flags_fo;
-    unsigned char  ttl;
-    unsigned char  proto;
-    unsigned short crc;
-    unsigned int   saddr;
-    unsigned int   daddr;
-};
-
-// UDP header
-struct udp_header {
-    unsigned short sport;
-    unsigned short dport;
-    unsigned short len;
-    unsigned short crc;
-};
-
-// DHCP packet structure
-struct dhcp_packet {
-    unsigned char op;       // Message op code
-    unsigned char htype;    // Hardware type
-    unsigned char hlen;     // Hardware address length
-    unsigned char hops;
-    unsigned int  xid;      // Transaction ID
-    unsigned short secs;
-    unsigned short flags;
-    unsigned int  ciaddr;
-    unsigned int  yiaddr;
-    unsigned int  siaddr;
-    unsigned int  giaddr;
-    unsigned char chaddr[16]; // Client MAC
-    unsigned char sname[64];
-    unsigned char file[128];
-    unsigned char options[312]; // DHCP options
-};
-
-// Checksum function for IP header
-unsigned short checksum(unsigned short *buf, int nwords) {
-    unsigned long sum;
-    for (sum = 0; nwords > 0; nwords--)
-        sum += *buf++;
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
-    return (unsigned short)(~sum);
-}
+#include "packet.h"
 
 // 取得選定裝置的 MAC 地址
 int get_mac_address(pcap_if_t *dev, unsigned char mac[6]) {
@@ -102,25 +41,6 @@ int get_mac_address(pcap_if_t *dev, unsigned char mac[6]) {
 
     return success;
 }
-
-uint8_t *dhcp_get_option(uint8_t *options, int code) {
-    uint8_t *opt = options;
-    int index =0;
-    while (*opt != 255) {
-        if (*opt == 0) { opt++; continue; } // Pad
-        uint8_t opt_code = opt[0];
-        uint8_t len = opt[1];
-        if (opt_code == code) {
-            return &opt[2]; // 回傳 data 開頭
-        }
-        // printf("opt_code:%d, len:%d\n",opt_code,len);
-        opt += 2 + len;
-        index += 2 + len;
-    }
-    printf("index:%d\n",index);
-    return NULL; // not found
-}
-
 
 int main() {
     pcap_if_t *alldevs, *d;

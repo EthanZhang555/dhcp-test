@@ -9,3 +9,6 @@ clean:
 
 dr:
 	gcc discover_request.c -IC:\npcap-sdk-1.15\Include -LC:\npcap-sdk-1.15\Lib -lwpcap -lPacket -lws2_32 -o discover_request.exe
+
+re:
+	gcc release.c -IC:\npcap-sdk-1.15\Include -LC:\npcap-sdk-1.15\Lib -lwpcap -lPacket -lws2_32 -o release.exe
