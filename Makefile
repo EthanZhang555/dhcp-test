@@ -12,3 +12,8 @@ dr:
 
 re:
 	gcc release.c -IC:\npcap-sdk-1.15\Include -LC:\npcap-sdk-1.15\Lib -lwpcap -lPacket -lws2_32 -o release.exe
+
+igmp:
+# 	gcc igmpv3.c -IC:\npcap-sdk-1.15\Include -LC:\npcap-sdk-1.15\Lib -lPacket -lwpcap -lws2_32 -o igmpv3.exe
+	gcc igmpv3_recv.c -IC:\npcap-sdk-1.15\Include -LC:\npcap-sdk-1.15\Lib -lPacket -lwpcap -lws2_32 -o igmpv3_recv.exe
+	gcc igmpv3_send.c -o igmpv3_send.exe -lws2_32
